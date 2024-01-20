@@ -61,7 +61,8 @@ class PureReLU(torch.nn.Module):
         return self.magic_unit(x)
 
 def tar_function(x):
-    return np.exp(np.floor(x) + np.cos(x)) - np.floor(x)
+    # furrier series with 2pi
+    return np.sin(x * 2 * np.pi) + np.sin(x * 4 * np.pi) + np.sin(x * 6 * np.pi) + np.sin(x * 8 * np.pi) + np.sin(x * 10 * np.pi) + np.sin(x * 12 * np.pi) + np.sin(x * 14 * np.pi) + np.sin(x * 16 * np.pi) + np.sin(x * 18 * np.pi) + np.sin(x * 20 * np.pi)
 
 class MyDataset(torch.utils.data.Dataset):
     def __init__(self):
@@ -108,6 +109,8 @@ def train(model, dataset, optimizer, loss_fn, epochs=150, batch_size=50):
         print(f"Epoch {epoch+1}/{epochs} loss: {loss.item():.4f}")
     
     axis[1].plot(all_loss, label=f"{model.__class__.__name__} Loss", color=model.color)
+
+
 
 # test for different optimizers
 def main():
