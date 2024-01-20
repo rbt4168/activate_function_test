@@ -2,25 +2,44 @@ from matplotlib import pyplot as plt
 import torchvision
 import torch
 import tqdm
+import numpy as np
 
 train_dataset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=torchvision.transforms.ToTensor())
 test_dataset = torchvision.datasets.CIFAR10(root="./data", train=False, download=True, transform=torchvision.transforms.ToTensor())
+
+
+class RFFLayer(torch.nn.Module):
+    def __init__(self, n_in, n_out, rng=10):
+        super(RFFLayer, self).__init__()
+        self.omega = torch.nn.Parameter(torch.linspace(-rng, rng, n_in * n_out).reshape(n_out, n_in).T)
+        self.rand_omega = torch.nn.Parameter(torch.randn(n_in, n_out) * rng)
+
+        self.bias = torch.nn.Parameter(torch.rand(n_out) * np.pi)
+        self.rand_bias = torch.nn.Parameter(torch.rand(n_out) * np.pi)
+        
+        self.fc = torch.nn.Linear(2 * n_out, n_out)
+    def forward(self, x):
+        x_rp = torch.cos(x @ self.rand_omega + self.rand_bias)
+        x = torch.cos(x @ self.omega + self.bias)
+        return self.fc(torch.cat([x, x_rp], dim=-1))
+
 
 class MagicActivate(torch.nn.Module):
     def __init__(self, n_in):
         super(MagicActivate, self).__init__()
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_in * 6, n_in),
+            torch.nn.Linear(n_in * 5, n_in),
         )
+        self.rff = RFFLayer(n_in, n_in)
     def forward(self, x):
         return self.fc(torch.cat([
-            torch.sin(x),
-            torch.cos(x),
             torch.exp(x),
             -torch.exp(x),
             torch.ceil(x),
             torch.relu(x),
+            self.rff(x),
         ], dim=-1))
+
 
 class BasicCNN(torch.nn.Module):
     def __init__(self):
@@ -43,10 +62,11 @@ class BasicCNN(torch.nn.Module):
             torch.nn.MaxPool2d(2),
 
             torch.nn.Flatten(),
-            torch.nn.Linear(512, 64),
+            torch.nn.Linear(512, 256),
             torch.nn.ReLU(),
-            torch.nn.Linear(64, 10)
+            torch.nn.Linear(256, 10)
         )
+        self.color = "#8F77B5"
     def forward(self, x):
         x = self.cnn(x)
         return x
@@ -72,10 +92,11 @@ class BasicCNNM(torch.nn.Module):
             torch.nn.MaxPool2d(2),
 
             torch.nn.Flatten(),
-            torch.nn.Linear(512, 64),
-            MagicActivate(64),
-            torch.nn.Linear(64, 10)
+            torch.nn.Linear(512, 256),
+            MagicActivate(256),
+            torch.nn.Linear(256, 10)
         )
+        self.color = "#33A6B8"
     def forward(self, x):
         x = self.cnn(x)
         return x
@@ -122,12 +143,12 @@ def train(tr_loader, va_loader , model, epochs, lr, device):
         all_accuracies.append(correct / total * 100)
         print(f"Accuracy: {correct / total * 100:.2f}%")
     
-    axis[0].plot(all_losses, label=f"{model.__class__.__name__} Loss")
-    axis[1].plot(all_accuracies, label=f"{model.__class__.__name__} Accuracy")
+    axis[0].plot(all_losses, label=f"{model.__class__.__name__} Loss", color=model.color)
+    axis[1].plot(all_accuracies, label=f"{model.__class__.__name__} Accuracy", color=model.color)
 
 models = [ BasicCNN(), BasicCNNM() ]
 batch_size = 128
-epochs = 20
+epochs = 50
 lr = 1e-4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 figure, axis = plt.subplots(1, 2)

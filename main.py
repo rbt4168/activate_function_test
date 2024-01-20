@@ -4,20 +4,37 @@ import random
 import tqdm
 import matplotlib.pyplot as plt
 
+
+class RFFLayer(torch.nn.Module):
+    def __init__(self, n_in, n_out, rng=10):
+        super(RFFLayer, self).__init__()
+        self.omega = torch.nn.Parameter(torch.linspace(-rng, rng, n_in * n_out).reshape(n_out, n_in).T)
+        self.rand_omega = torch.nn.Parameter(torch.randn(n_in, n_out) * rng)
+
+        self.bias = torch.nn.Parameter(torch.rand(n_out) * np.pi)
+        self.rand_bias = torch.nn.Parameter(torch.rand(n_out) * np.pi)
+        
+        self.fc = torch.nn.Linear(2 * n_out, n_out)
+    def forward(self, x):
+        x_rp = torch.cos(x @ self.rand_omega + self.rand_bias)
+        x = torch.cos(x @ self.omega + self.bias)
+        return self.fc(torch.cat([x, x_rp], dim=-1))
+
+
 class MagicActivate(torch.nn.Module):
     def __init__(self, n_in):
         super(MagicActivate, self).__init__()
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_in * 6, n_in),
+            torch.nn.Linear(n_in * 4, n_in),
         )
+        self.rff = RFFLayer(n_in, n_in)
     def forward(self, x):
         return self.fc(torch.cat([
-            torch.sin(x),
-            torch.cos(x),
             torch.exp(x),
             -torch.exp(x),
-            torch.ceil(x),
+            # torch.ceil(x),
             torch.relu(x),
+            self.rff(x),
         ], dim=-1))
 
 class ModifiedActivate(torch.nn.Module):
@@ -36,8 +53,9 @@ class MagicActivate2(torch.nn.Module):
     def __init__(self, n_in):
         super(MagicActivate2, self).__init__()
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(n_in * 6, n_in),
+            torch.nn.Linear(n_in * 7, n_in),
         )
+        self.rff = RFFLayer(n_in, n_in)
     def forward(self, x):
         return self.fc(torch.cat([
             torch.relu(x),
@@ -46,6 +64,7 @@ class MagicActivate2(torch.nn.Module):
             torch.relu(x),
             torch.relu(x),
             torch.relu(x),
+            self.rff(x),
         ], dim=-1))
 
 class PureReLU(torch.nn.Module):
@@ -61,17 +80,14 @@ class PureReLU(torch.nn.Module):
         return self.magic_unit(x)
 
 def tar_function(x):
-    # furrier series with 2pi
-    return np.sin(x * 2 * np.pi) + np.sin(x * 4 * np.pi) + np.sin(x * 6 * np.pi) + np.sin(x * 8 * np.pi) + np.sin(x * 10 * np.pi) + np.sin(x * 12 * np.pi) + np.sin(x * 14 * np.pi) + np.sin(x * 16 * np.pi) + np.sin(x * 18 * np.pi) + np.sin(x * 20 * np.pi)
+    return np.floor(x);
 
 class MyDataset(torch.utils.data.Dataset):
     def __init__(self):
         super(MyDataset, self).__init__()
         self.data = torch.rand(2000, 1) * 6 - 3
 
-        # ==================== #
         self.target = torch.tensor(tar_function(self.data)).float()
-        # ==================== #
 
     def __len__(self):
         return len(self.data)
