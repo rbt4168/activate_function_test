@@ -16,3 +16,6 @@ The observation that more complex activation functions lead to higher adaptation
 ![](/assets/modified_win/result_cos(exp(x))+sin(exp(-x)).png)
 ![](/assets/modified_win/result_exp(floor(x)+cos(x))-floor(x).png)
 ![](/assets/modified_win/result_fur.png)
+
+### CIFAR10 benchmark testing (BasicCNNM means modified with ComplexActivate)
+![](/assets/benchmark.png)

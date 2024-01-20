@@ -125,10 +125,6 @@ def train(tr_loader, va_loader , model, epochs, lr, device):
     axis[0].plot(all_losses, label=f"{model.__class__.__name__} Loss")
     axis[1].plot(all_accuracies, label=f"{model.__class__.__name__} Accuracy")
 
-def test(loader, model, device):
-    model.to(device)
-
-
 models = [ BasicCNN(), BasicCNNM() ]
 batch_size = 128
 epochs = 20
